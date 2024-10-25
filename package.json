@@ -1,0 +1,25 @@
+{
+  "name": "emote-server",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@9.12.2+sha512.22721b3a11f81661ae1ec68ce1a7b879425a1ca5b991c975b074ac220b187ce56c708fe5db69f4c962c989452eee76c82877f4ee80f474cebd61ee13461b6228",
+  "dependencies": {
+    "@fastify/autoload": "^6.0.2",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/rate-limit": "^10.1.1",
+    "@fastify/static": "^8.0.2",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.0.0",
+    "fastify-sse-v2": "^4.1.0",
+    "ioredis": "^5.4.1",
+    "kafkajs": "^2.2.4",
+    "pino": "^9.5.0"
+  }
+}
