@@ -25,8 +25,9 @@
     <style>
       emote-widget {
         position: absolute;
-        right: 0;
+      	right: 0;
         bottom: 0;
+				z-index: 1000;
       }
     </style>
   </head>
@@ -280,10 +281,10 @@
       Reveal.initialize({
         width: 1280,
         height: 720,
-        margin: 0.05,
+        margin: 0.2,
 
         hash: true,
-        controls: true,
+        controls: false,
         progress: true,
         mouseWheel: false,
         showNotes: false,
@@ -314,7 +315,7 @@
       });
     </script>
 
-    <emote-widget talk-id="demo" open></emote-widget>
+    <emote-widget talk-id="jsconfmx"></emote-widget>
     <script src="emote.widget.iife.js"></script>
   </body>
 </html>
