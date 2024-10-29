@@ -1,36 +1,36 @@
-import { on } from "node:events";
-import { producer, events, topic } from "../lib/kafka.js";
-import { getVotes, saveEvent, vote } from "../lib/db.js";
+import { EventIterator } from 'event-iterator';
+import { producer, events, topic } from '../lib/kafka.js';
+import { getVotes, saveEvent, vote } from '../lib/db.js';
 import {
   HEARTBEAT_TIMEOUT,
   EVENT_ID_LENGTH,
   EMOTE_ALLOWLIST,
   RATE_LIMIT_MAX,
   RATE_LIMIT_WINDOW,
-} from "../config.js";
+} from '../config.js';
 
-export default async function (fastify, opts) {
+export default async function (fastify, _opts) {
   /**
    * Validation Schemas
    */
   const paramsSchema = {
-    $id: "params",
-    type: "object",
+    $id: 'params',
+    type: 'object',
     properties: {
       id: {
-        type: "string",
+        type: 'string',
         maxLength: EVENT_ID_LENGTH,
       },
     },
   };
 
   const bodySchema = {
-    $id: "body",
-    type: "object",
-    required: ["emote"],
+    $id: 'body',
+    type: 'object',
+    required: ['emote'],
     properties: {
       emote: {
-        type: "string",
+        type: 'string',
         enum: EMOTE_ALLOWLIST,
       },
     },
@@ -42,15 +42,15 @@ export default async function (fastify, opts) {
   /**
    * Cleanup events to prevent memory leaks
    *
-   * @param {String} id
    * @param {TimerHandler} hb
+   * @param {Function} listener
    */
-  function cleanup(id, eventName, hb) {
-    fastify.log.info("Cleaning up event listeners");
-    for (const name of eventName) {
-      events.emit(`${name}:${id}:close`);
-    }
+  function cleanup(id, hb, fn) {
+    fastify.log.info(`Cleaning up event listeners for id: ${id}`);
     clearInterval(hb);
+    events.removeListener(`emote:${id}`, fn);
+    events.removeListener(`heartbeat:${id}`, fn);
+    events.removeListener(`votes:${id}`, fn);
   }
 
   /**
@@ -64,42 +64,38 @@ export default async function (fastify, opts) {
       const votes = await getVotes(id);
       events.emit(`heartbeat:${id}`, {
         id,
-        event: "heartbeat",
-        data: "ping",
+        event: 'heartbeat',
+        data: 'ping',
       });
       events.emit(`votes:${id}`, {
         id,
-        event: "votes",
+        event: 'votes',
         data: JSON.stringify(votes),
       });
     }, HEARTBEAT_TIMEOUT * 1000);
   }
 
-  async function* onEvent(id, name) {
-    fastify.log.info(`Listening for events on ${name}:${id}`);
-    for await (const [event] of on(events, `${name}:${id}`, {
-      close: `${name}:${id}:close`,
-    })) {
-      yield { id, data: JSON.stringify(event) };
-    }
-  }
-
   fastify.get(
-    "/events/:id",
+    '/events/:id',
     {
       schema: paramsSchema,
     },
     async (request, reply) => {
       // fastify-cors doesn't seem to work with fastify-sse-v2
       // so we need to add this header to this route manually
-      reply.raw.setHeader("Access-Control-Allow-Origin", "*");
-      const eventNames = ["emotes", "votes", "heartbeat"];
+      reply.raw.setHeader('Access-Control-Allow-Origin', '*');
       const id = request.params.id;
       const hb = heartbeat(id);
-      request.socket.on("close", () => cleanup(id, eventNames, hb));
-      reply.sse(onEvent(id, "emotes"));
-      reply.sse(onEvent(id, "votes"));
-      reply.sse(onEvent(id, "heartbeat"));
+
+      const eventIterator = new EventIterator(({ push }) => {
+        events.on(`emote:${id}`, push);
+        events.on(`heartbeat:${id}`, push);
+        events.on(`votes:${id}`, push);
+        request.raw.on('close', () => cleanup(id, hb, push));
+        return () => cleanup(id, hb, push);
+      });
+
+      reply.sse(eventIterator);
     }
   );
 
@@ -107,7 +103,7 @@ export default async function (fastify, opts) {
    * Get the current votes by Event ID
    */
   fastify.get(
-    "/emote/:id",
+    '/emote/:id',
     {
       schema: {
         params: paramsSchema,
@@ -129,7 +125,7 @@ export default async function (fastify, opts) {
    * Send a emote by Event ID
    */
   fastify.post(
-    "/emote/:id",
+    '/emote/:id',
     {
       config: {
         rateLimit: {
@@ -157,10 +153,10 @@ export default async function (fastify, opts) {
       }
 
       const message = {
-        event: `emotes:${id}`,
+        event: `emote:${id}`,
         data: {
           id,
-          event: "emote",
+          event: 'emote',
           data: emote,
         },
       };
@@ -168,7 +164,7 @@ export default async function (fastify, opts) {
         topic,
         messages: [{ value: JSON.stringify(message) }],
       });
-      reply.send({ message: "emote received" });
+      reply.send({ message: 'emote received' });
     }
   );
 }
