@@ -10,17 +10,19 @@ import FastifyRateLimit from '@fastify/rate-limit';
 import FastifySSEPlugin from 'fastify-sse-v2';
 import { db } from './lib/db.js';
 import { createLogger } from './lib/logger.js';
-import { PORT } from './config.js';
+import { RATE_LIMIT_ENABLED, PORT } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const fastify = Fastify({ logger: createLogger, pluginTimeout: 0 });
 
-fastify.register(FastifyRateLimit, {
-  global: false,
-  redis: db,
-});
+if (RATE_LIMIT_ENABLED) {
+  fastify.register(FastifyRateLimit, {
+    global: false,
+    redis: db,
+  });
+}
 fastify.register(FastifyStatic, {
   root: join(__dirname, 'public'),
 });
