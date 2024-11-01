@@ -49,7 +49,6 @@ export default async function (fastify, _opts) {
     fastify.log.info(`Cleaning up event listeners for id: ${id}`);
     clearInterval(hb);
     events.removeListener(`emote:${id}`, fn);
-    events.removeListener(`heartbeat:${id}`, fn);
     events.removeListener(`votes:${id}`, fn);
   }
 
@@ -62,11 +61,6 @@ export default async function (fastify, _opts) {
     fastify.log.info(`Starting heartbeat for event id: ${id}`);
     return setInterval(async () => {
       const votes = await getVotes(id);
-      events.emit(`heartbeat:${id}`, {
-        id,
-        event: 'heartbeat',
-        data: 'ping',
-      });
       events.emit(`votes:${id}`, {
         id,
         event: 'votes',
@@ -89,7 +83,6 @@ export default async function (fastify, _opts) {
 
       const eventIterator = new EventIterator(({ push }) => {
         events.on(`emote:${id}`, push);
-        events.on(`heartbeat:${id}`, push);
         events.on(`votes:${id}`, push);
         request.raw.on('close', () => cleanup(id, hb, push));
         return () => cleanup(id, hb, push);
